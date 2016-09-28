@@ -9,46 +9,39 @@ public class ShooterCharacterController : MonoBehaviour {
 	private float moveX;
 	private float moveY;
 	private Vector3 movement;
-	private float turnX;
-	private float turnY;
-	private Vector3 turn;
-	public bool mouseLock;
 	private Transform trans;
-	private int invertLookX;
-	private int invertLookY;
+    private MouseLookTest mlScript;
+    private bool mouseLookMode;
 
 	void Start ()
 	{
 		inAir = false;
-		mouseLock = false;
 		hp = 100f;
 		trans = this.gameObject.transform;
-		invertLookX = 1;
-		invertLookY = -11;
+        mlScript = GetComponent<MouseLookTest>();
+        mouseLookMode = true;
+        mlScript.setMLMode(mouseLookMode);
 	
 	}
 
 	void Update ()
 	{
-		turnX = Input.GetAxisRaw ("Mouse X");
-		turnY = Input.GetAxisRaw ("Mouse Y");
-		turn.y = turnX * invertLookX;
-		turn.x = turnY * invertLookY;
-		//turn.z = trans.rotation.eulerAngles.z;
-		Debug.Log(trans.rotation.eulerAngles);
-		trans.rotation = Quaternion.Euler (trans.rotation.eulerAngles + turn);
-		Vector3 aa = new Vector3 (10, 10, 10);
 		if (Input.GetKey(KeyCode.LeftAlt))
 		{
-			toggleMouseLock ();
+            if (mouseLookMode == true)
+                mouseLookMode = false;
+            else if (mouseLookMode == false)
+                mouseLookMode = true;
+            mlScript.setMLMode(mouseLookMode);
+
 		}
 		if (Input.GetKey(KeyCode.Alpha1))
 		{
-			invertLookX *= -1;
+            mlScript.invertXLook();
 		}
 		if (Input.GetKey (KeyCode.Alpha2))
 		{
-			invertLookY *= -1;
+            mlScript.invertYLook();
 		}
 	}
 
@@ -59,19 +52,5 @@ public class ShooterCharacterController : MonoBehaviour {
 		movement.x = moveX;
 		movement.z = moveY;
 		trans.Translate (movement * moveSpeed);
-	}
-
-	void toggleMouseLock ()
-	{
-		if (mouseLock == false)
-		{
-			Cursor.lockState = CursorLockMode.Locked;
-			mouseLock = true;
-		}
-		else if (mouseLock == true)
-		{
-			Cursor.lockState = CursorLockMode.None;
-			mouseLock = false;
-		}
 	}
 }

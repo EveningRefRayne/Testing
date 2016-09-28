@@ -5,117 +5,129 @@ public class MouseLookTest : MonoBehaviour {
 
 	public float XSensitivity = 2f;
 	public float YSensitivity = 2f;
+    public float invertX = 1;
+    public float invertY = 1;
 	public bool clampVerticalRotation = true;
 	public float MinimumX = -90F;
 	public float MaximumX = 90F;
 	public bool smooth;
 	public float smoothTime = 5f;
-	public bool lockCursor = true;
 	public Transform character;
 	public Transform camera;
 
 
-	private Quaternion m_CharacterTargetRot;
-	private Quaternion m_CameraTargetRot;
-	private bool m_cursorIsLocked = true;
+	private Quaternion characterTargetRot;
+	private Quaternion cameraTargetRot;
+    private bool lockCursor = true;
+    private bool MLMode = true;
 
-	public void Init()
-	{
-		m_CharacterTargetRot = character.localRotation;
-		m_CameraTargetRot = camera.localRotation;
-	}
 
 	public void Awake()
 	{
-		Init ();
+        //Sets the character and camera's target rotation to their current one when the script starts running.
+		characterTargetRot = character.localRotation;
+		cameraTargetRot = camera.localRotation;
+        setCursorLock(lockCursor);
 	}
-
+    
 	private void Update()
 	{
-		LookRotation ();
+        //Updates every frame. If the player's in mouselook mode, it runs the function that does the work and checks to see if they want to lock/unlock the mouse.
+        if (MLMode)
+        {
+            if (lockCursor) lookRotation();
+            updateCursorLock();
+        }
 	}
 
 
-	public void LookRotation()
+	private void lookRotation()
 	{
-		float yRot = Input.GetAxis("Mouse X") * XSensitivity;
-		float xRot = Input.GetAxis("Mouse Y") * YSensitivity;
+        //This is what runs the mouselook, moving the character and camera transforms to follow the mouse. Called every Update.
+		float yRot = Input.GetAxis("Mouse X") * XSensitivity * invertX;
+        float xRot = Input.GetAxis("Mouse Y") * YSensitivity * invertY;
 
-		m_CharacterTargetRot *= Quaternion.Euler (0f, yRot, 0f);
-		m_CameraTargetRot *= Quaternion.Euler (-xRot, 0f, 0f);
+		characterTargetRot *= Quaternion.Euler (0f, yRot, 0f);
+		cameraTargetRot *= Quaternion.Euler (-xRot, 0f, 0f);
 
 		if(clampVerticalRotation)
-			m_CameraTargetRot = ClampRotationAroundXAxis (m_CameraTargetRot);
+			cameraTargetRot = clampRotationAroundXAxis (cameraTargetRot);
 
 		if(smooth)
 		{
-			character.localRotation = Quaternion.Slerp (character.localRotation, m_CharacterTargetRot,
+			character.localRotation = Quaternion.Slerp (character.localRotation, characterTargetRot,
 				smoothTime * Time.deltaTime);
-			camera.localRotation = Quaternion.Slerp (camera.localRotation, m_CameraTargetRot,
+			camera.localRotation = Quaternion.Slerp (camera.localRotation, cameraTargetRot,
 				smoothTime * Time.deltaTime);
 		}
 		else
 		{
-			character.localRotation = m_CharacterTargetRot;
-			camera.localRotation = m_CameraTargetRot;
+			character.localRotation = characterTargetRot;
+			camera.localRotation = cameraTargetRot;
 		}
-
-		UpdateCursorLock();
 	}
 
-	public void SetCursorLock(bool value)
+    private Quaternion clampRotationAroundXAxis(Quaternion q)
+    {
+        //This is used by lookRotation to clamp the axis to vertical up and down so the player can't do terrible things with the camera.
+        q.x /= q.w;
+        q.y /= q.w;
+        q.z /= q.w;
+        q.w = 1.0f;
+
+        float angleX = 2.0f * Mathf.Rad2Deg * Mathf.Atan(q.x);
+
+        angleX = Mathf.Clamp(angleX, MinimumX, MaximumX);
+
+        q.x = Mathf.Tan(0.5f * Mathf.Deg2Rad * angleX);
+
+        return q;
+    }
+
+    private void updateCursorLock()
 	{
-		lockCursor = value;
-		if(!lockCursor)
-		{//we force unlock the cursor if the user disable the cursor locking helper
-			Cursor.lockState = CursorLockMode.None;
-			Cursor.visible = true;
-		}
+        //this checks every update if the player hit escape to unlock the mouse, or clicked back in.
+        if (Input.GetKeyUp(KeyCode.Escape))
+        {
+            setCursorLock(false);
+        }
+        else if (Input.GetMouseButtonUp(0))
+        {
+            setCursorLock(true);
+        }
 	}
 
-	public void UpdateCursorLock()
-	{
-		//if the user set "lockCursor" we check & properly lock the cursos
-		if (lockCursor)
-			InternalLockUpdate();
-	}
 
-	private void InternalLockUpdate()
-	{
-		if(Input.GetKeyUp(KeyCode.Escape))
-		{
-			m_cursorIsLocked = false;
-		}
-		else if(Input.GetMouseButtonUp(0))
-		{
-			m_cursorIsLocked = true;
-		}
+    private void setCursorLock(bool value)
+    {
+        //this is called internally to do the locking and unlocking when you want to lock or unlock the cursor.
+        lockCursor = value;
+        if (lockCursor)
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
+        else
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+        }
+    }
 
-		if (m_cursorIsLocked)
-		{
-			Cursor.lockState = CursorLockMode.Locked;
-			Cursor.visible = false;
-		}
-		else if (!m_cursorIsLocked)
-		{
-			Cursor.lockState = CursorLockMode.None;
-			Cursor.visible = true;
-		}
-	}
+    public void setMLMode(bool value)
+    {
+        //This is an external function to be called by other scripts to change into and out of mouselook mode entirely.
+        MLMode = value;
+        setCursorLock(MLMode);
+    }
 
-	Quaternion ClampRotationAroundXAxis(Quaternion q)
-	{
-		q.x /= q.w;
-		q.y /= q.w;
-		q.z /= q.w;
-		q.w = 1.0f;
-
-		float angleX = 2.0f * Mathf.Rad2Deg * Mathf.Atan (q.x);
-
-		angleX = Mathf.Clamp (angleX, MinimumX, MaximumX);
-
-		q.x = Mathf.Tan (0.5f * Mathf.Deg2Rad * angleX);
-
-		return q;
-	}
+    //These two are for inverting the X and Y movement.
+    public void invertXLook()
+    {
+        invertX *= -1;
+    }
+    public void invertYLook()
+    {
+        invertY *= -1;
+    }
 }
